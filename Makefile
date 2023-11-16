@@ -18,9 +18,7 @@ go-deploy-dir:
 	scp -r ./webapp/go isucon10-qualify-1:/home/isucon/webapp/
 
 restart:
-	ssh isucon10-qualify-1 "sudo systemctl restart isuumo.service"
-	ssh isucon10-qualify-2 "sudo systemctl restart isuumo.service"
-	ssh isucon10-qualify-3 "sudo systemctl restart isuumo.service"
+	ssh isucon10-qualify-1 "sudo systemctl restart isuumo.go.service"
 
 mysql-deploy:
 	ssh isucon10-qualify-1 "sudo dd of=/etc/mysql/mysql.conf.d/mysqld.cnf" < ./etc/mysql/mysql.conf.d/mysqld.cnf
@@ -48,19 +46,20 @@ nginx-restart:
 bench:
 	ssh isucon10-qualify-bench " \
 		cd /home/isucon/isuumo/bench; \
-		./bench --target-url http://172.31.35.16:1323"
+		./bench --target-url http://172.31.35.16:80"
 
 pt-query-digest:
 	ssh isucon10-qualify-1 "sudo pt-query-digest --limit 10 /var/log/mysql/mysql-slow.log"
 
 ALPSORT=sum
-# /api/player/competition/[0-9a-z\-]+/ranking
-# /api/player/player/[0-9a-z]+
-# /api/organizer/competition/[0-9a-z\-]+/finish
-# /api/organizer/competition/[0-9a-z\-]+/score
-# /api/organizer/player/[0-9a-z\-]+/disqualified
-# /api/admin/tenants/billing
-ALPM=/api/player/competition/[0-9a-z\-]+/ranking,/api/player/player/[0-9a-z]+,/api/organizer/competition/[0-9a-z\-]+/finish,/api/organizer/competition/[0-9a-z\-]+/score,/api/organizer/player/[0-9a-z\-]+/disqualified,/api/admin/tenants/billing
+# /api/estate/req_doc/16750
+# /api/estate/7356
+# /api/chair/11230
+# /api/chair/buy/13729
+# /api/recommended_estate/9162
+# /api/chair/search?page=3&perPage=25&widthRangeId=0
+# /api/estate/search?doorWidthRangeId=1&page=4&perPage=25
+ALPM=/api/estate/req_doc/[0-9]+,/api/estate/[0-9]+,/api/chair/[0-9]+,/api/chair/buy/[0-9]+,/api/recommended_estate/[0-9]+,/api/chair/search?.+,/api/estate/search?.+
 OUTFORMAT=count,method,uri,min,max,sum,avg,p99
 
 alp:
