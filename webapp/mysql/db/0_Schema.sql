@@ -37,4 +37,5 @@ CREATE TABLE isuumo.chair
     stock       INTEGER         NOT NULL
 );
 
+ALTER TABLE isuumo.estate ADD INDEX index_rent_and_id_on_estate(rent, id);
 ALTER TABLE isuumo.chair ADD INDEX index_price_and_id_on_chair(price, id);
