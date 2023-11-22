@@ -21,13 +21,13 @@ restart:
 	ssh isucon10-qualify-1 "sudo systemctl restart isuumo.go.service"
 
 mysql-deploy:
-	ssh isucon10-qualify-1 "sudo dd of=/etc/mysql/mysql.conf.d/mysqld.cnf" < ./etc/mysql/mysql.conf.d/mysqld.cnf
+	ssh isucon10-qualify-2 "sudo dd of=/etc/mysql/mysql.conf.d/mysqld.cnf" < ./etc/mysql/mysql.conf.d/mysqld.cnf
 
 mysql-rotate:
-	ssh isucon10-qualify-1 "sudo rm -f /var/log/mysql/mysql-slow.log"
+	ssh isucon10-qualify-2 "sudo rm -f /var/log/mysql/mysql-slow.log"
 
 mysql-restart:
-	ssh isucon10-qualify-1 "sudo systemctl restart mysql.service"
+	ssh isucon10-qualify-2 "sudo systemctl restart mysql.service"
 
 nginx-deploy:
 	ssh isucon10-qualify-1 "sudo dd of=/etc/nginx/nginx.conf" < ./etc/nginx/nginx.conf
@@ -49,7 +49,7 @@ bench:
 		./bench --target-url http://172.31.35.16:80"
 
 pt-query-digest:
-	ssh isucon10-qualify-1 "sudo pt-query-digest --limit 10 /var/log/mysql/mysql-slow.log"
+	ssh isucon10-qualify-2 "sudo pt-query-digest --limit 10 /var/log/mysql/mysql-slow.log"
 
 ALPSORT=sum
 # /api/estate/req_doc/16750
