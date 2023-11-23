@@ -24,7 +24,9 @@ const Limit = 20
 const NazotteLimit = 50
 
 var db *sqlx.DB
+var dbEstate *sqlx.DB
 var mySQLConnectionData *MySQLConnectionEnv
+var mySQLConnectionDataEstate *MySQLConnectionEnv
 var chairSearchCondition ChairSearchCondition
 var estateSearchCondition EstateSearchCondition
 
@@ -210,6 +212,16 @@ func NewMySQLConnectionEnv() *MySQLConnectionEnv {
 	}
 }
 
+func NewMySQLConnectionEnvEstate() *MySQLConnectionEnv {
+	return &MySQLConnectionEnv{
+		Host:     getEnv("MYSQL_HOST_ESTATE", "127.0.0.1"),
+		Port:     getEnv("MYSQL_PORT", "3306"),
+		User:     getEnv("MYSQL_USER", "isucon"),
+		DBName:   getEnv("MYSQL_DBNAME", "isuumo"),
+		Password: getEnv("MYSQL_PASS", "isucon"),
+	}
+}
+
 func getEnv(key, defaultValue string) string {
 	val := os.Getenv(key)
 	if val != "" {
@@ -272,6 +284,7 @@ func main() {
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
+	mySQLConnectionDataEstate = NewMySQLConnectionEnvEstate()
 
 	var err error
 	db, err = mySQLConnectionData.ConnectDB()
@@ -280,6 +293,13 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
+
+	dbEstate, err = mySQLConnectionDataEstate.ConnectDB()
+	if err != nil {
+		e.Logger.Fatalf("DB connection failed : %v", err)
+	}
+	dbEstate.SetMaxOpenConns(10)
+	defer dbEstate.Close()
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
@@ -302,6 +322,19 @@ func initialize(c echo.Context) error {
 			mySQLConnectionData.Password,
 			mySQLConnectionData.Port,
 			mySQLConnectionData.DBName,
+			sqlFile,
+		)
+		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		cmdStr = fmt.Sprintf("mysql -h %v -u %v -p%v -P %v %v < %v",
+			mySQLConnectionDataEstate.Host,
+			mySQLConnectionDataEstate.User,
+			mySQLConnectionDataEstate.Password,
+			mySQLConnectionDataEstate.Port,
+			mySQLConnectionDataEstate.DBName,
 			sqlFile,
 		)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
@@ -612,7 +645,7 @@ func getEstateDetail(c echo.Context) error {
 	}
 
 	var estate Estate
-	err = db.Get(&estate, "SELECT * FROM estate WHERE id = ?", id)
+	err = dbEstate.Get(&estate, "SELECT * FROM estate WHERE id = ?", id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("getEstateDetail estate id %v not found", id)
@@ -656,7 +689,7 @@ func postEstate(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	tx, err := db.Begin()
+	tx, err := dbEstate.Begin()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -778,7 +811,7 @@ func searchEstates(c echo.Context) error {
 	limitOffset := " ORDER BY popularity_desc ASC, id ASC LIMIT ? OFFSET ?"
 
 	var res EstateSearchResponse
-	err = db.Get(&res.Count, countQuery+searchCondition, params...)
+	err = dbEstate.Get(&res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -786,7 +819,7 @@ func searchEstates(c echo.Context) error {
 
 	estates := []Estate{}
 	params = append(params, perPage, page*perPage)
-	err = db.Select(&estates, searchQuery+searchCondition+limitOffset, params...)
+	err = dbEstate.Select(&estates, searchQuery+searchCondition+limitOffset, params...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
@@ -803,7 +836,7 @@ func searchEstates(c echo.Context) error {
 func getLowPricedEstate(c echo.Context) error {
 	estates := make([]Estate, 0, Limit)
 	query := `SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT ?`
-	err := db.Select(&estates, query, Limit)
+	err := dbEstate.Select(&estates, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Error("getLowPricedEstate not found")
@@ -840,7 +873,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	h := chair.Height
 	d := chair.Depth
 	query = `SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity_desc ASC, id ASC LIMIT ?`
-	err = db.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
+	err = dbEstate.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})
@@ -867,7 +900,7 @@ func searchEstateNazotte(c echo.Context) error {
 	var re EstateSearchResponse
 	re.Estates = []Estate{}
 	query := fmt.Sprintf(`SELECT * FROM estate WHERE ST_Contains(ST_PolygonFromText(%s), point) ORDER BY popularity_desc ASC, id ASC LIMIT ?`, coordinates.coordinatesToText())
-	err = db.Select(&re.Estates, query, NazotteLimit)
+	err = dbEstate.Select(&re.Estates, query, NazotteLimit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("select * from estate where ...", err)
@@ -904,7 +937,7 @@ func postEstateRequestDocument(c echo.Context) error {
 
 	estate := Estate{}
 	query := `SELECT * FROM estate WHERE id = ?`
-	err = db.Get(&estate, query, id)
+	err = dbEstate.Get(&estate, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
