@@ -51,8 +51,11 @@ bench:
 		cd /home/isucon/isuumo/bench; \
 		./bench --target-url http://172.31.35.16:80"
 
-pt-query-digest:
+pt-query-digest-2:
 	ssh isucon10-qualify-2 "sudo pt-query-digest --limit 10 /var/log/mysql/mysql-slow.log"
+
+pt-query-digest-3:
+	ssh isucon10-qualify-3 "sudo pt-query-digest --limit 10 /var/log/mysql/mysql-slow.log"
 
 ALPSORT=sum
 # /api/estate/req_doc/16750
