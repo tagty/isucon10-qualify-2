@@ -46,3 +46,6 @@ ALTER TABLE isuumo.estate ADD SPATIAL INDEX estate_point_idx(point);
 
 ALTER TABLE isuumo.chair ADD INDEX chair_price_id_idx(price, id);
 ALTER TABLE isuumo.chair ADD INDEX chair_popularity_id_idx(popularity_desc, id);
+ALTER TABLE isuumo.chair ADD INDEX chair_price_idx(price, stock);
+ALTER TABLE isuumo.chair ADD INDEX chair_height_idx(height, stock);
+ALTER TABLE isuumo.chair ADD INDEX chair_kind_idx(kind, stock);
